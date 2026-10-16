@@ -14,7 +14,7 @@ import { ToastService } from './services/toast.service';
           <span class="brand-logo">S</span>
           <div class="brand-text">
             <strong>StockPilot</strong>
-            <small>Inventory Management</small>
+            <small>Inventory Management System</small>
           </div>
         </div>
 
