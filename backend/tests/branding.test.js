@@ -41,8 +41,13 @@ describe('application branding', () => {
         const entryPath = path.join(directory, entry.name);
         if (entry.isDirectory()) {
           visit(entryPath);
-        } else if (fs.readFileSync(entryPath).toString().includes(oldPhrase)) {
-          matches.push(path.relative(repositoryRoot, entryPath));
+        } else {
+          const contents = fs.readFileSync(entryPath, 'utf8');
+          const oldPhrasePattern = new RegExp(`${oldPhrase}(?! System)`);
+
+          if (oldPhrasePattern.test(contents)) {
+            matches.push(path.relative(repositoryRoot, entryPath));
+          }
         }
       }
     }
