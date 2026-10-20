@@ -20,7 +20,11 @@ describe('AppComponent branding', () => {
     const subtitle = brand.querySelector('small');
 
     expect(brand.textContent).toContain('StockPilot');
-    expect(subtitle.textContent.trim()).toBe('Inventory Management System');
-    expect(subtitle.textContent.trim()).not.toBe('Inventory Management');
+    const subtitleText = subtitle.textContent.trim();
+
+    expect(subtitleText).toBe('Inventory Management System');
+    const oldBranding = ['Inventory', 'Management'].join(' ');
+
+    expect(subtitleText).not.toBe(oldBranding);
   });
 });
