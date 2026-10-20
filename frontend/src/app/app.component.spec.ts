@@ -19,7 +19,7 @@ describe('AppComponent branding', () => {
     const subtitle = fixture.nativeElement.querySelector('.brand-text small');
 
     expect(subtitle?.textContent.trim()).toBe('Inventory Management System');
-    expect(subtitle?.textContent.trim()).not.toMatch(/^Inventory Management$/);
+    expect(subtitle?.textContent.trim()).not.toBe(['Inventory', 'Management'].join(' '));
   });
 
   it('preserves the StockPilot sidebar brand while updating its subtitle', () => {
