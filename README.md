@@ -1,4 +1,4 @@
-# StockPilot — Inventory Management
+# StockPilot — Inventory Management System
 
 A simple, modern inventory management app.
 
