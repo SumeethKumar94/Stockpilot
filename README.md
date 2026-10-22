@@ -23,8 +23,8 @@ A simple, modern inventory management app.
 ## Table of contents
 
 1. [Project structure](#1-project-structure)
-1.1 [Prerequisites](#2-prerequisites)
-2. [Automated Coding Agent Setup and Execution](#2-Automated-Coding-Agent-Setup-and-Execution)
+1.1 [Prerequisites](#1.1-prerequisites)
+2. [Automated Coding Agent Setup and Execution](#2-automated-coding-agent-setup-and-execution)
 3. [Install PostgreSQL](#3-install-postgresql)
 4. [Create the database](#4-create-the-database)
 5. [Install and start the backend](#5-install-and-start-the-backend)
