@@ -96,7 +96,7 @@ For the automated environment, use the following working directory:
 /workspace/repo
 
 Verify the repository structure before continuing:
-
+```bash
 cd /workspace/repo
 
 test -f README.md
@@ -107,7 +107,7 @@ test -f backend/package.json
 test -f frontend/package.json
 
 echo "Repository structure verified"
-
+```
 If a required file is missing, stop and report the error rather than continuing with incomplete setup.
 
 ### 2.2 Create the application environment
