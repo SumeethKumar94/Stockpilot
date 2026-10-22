@@ -22,5 +22,6 @@ describe('repository branding', () => {
     expect(files.component).not.toMatch(/<small>Inventory Management<\/small>/);
     expect(files.index).not.toContain('<title>StockPilot · Inventory Management</title>');
     expect(files.readme).not.toContain('# StockPilot — Inventory Management\n');
+    expect(files.readme).toContain('inventory management app');
   });
 });
