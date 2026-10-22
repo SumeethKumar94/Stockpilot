@@ -23,7 +23,8 @@ A simple, modern inventory management app.
 ## Table of contents
 
 1. [Project structure](#1-project-structure)
-2. [Prerequisites](#2-prerequisites)
+1.1 [Prerequisites](#1.1-prerequisites)
+2. [Automated Coding Agent Setup and Execution](#2-automated-coding-agent-setup-and-execution)
 3. [Install PostgreSQL](#3-install-postgresql)
 4. [Create the database](#4-create-the-database)
 5. [Install and start the backend](#5-install-and-start-the-backend)
@@ -66,7 +67,7 @@ inventory-management/
 
 ---
 
-## 2. Prerequisites
+## 1.1 Prerequisites
 
 | Tool        | Version              | Check with        |
 |-------------|----------------------|-------------------|
@@ -80,7 +81,366 @@ Install Node.js from <https://nodejs.org> (or with `nvm`: `nvm install 20`).
 You do **not** need to install the Angular CLI globally; it is installed locally with the frontend dependencies and run through `npm` scripts.
 
 ---
+## 2.Automated Coding Agent Setup and Execution
 
+This section defines the required steps for an automated coding agent or CI pipeline to clone, configure, build, test, start, and validate the StockPilot Inventory Management System in an isolated Docker environment.
+
+Important: Execute the steps in the order shown. The application uses Angular 18, Node.js + Express, and PostgreSQL 16. PostgreSQL must be available before database initialization, backend integration tests, or application startup.
+
+### 2.1 Repository and working directory
+
+The repository root contains README.md, database/, backend/, and frontend/.
+
+For the automated environment, use the following working directory:
+
+/workspace/repo
+
+Verify the repository structure before continuing:
+```bash
+cd /workspace/repo
+
+test -f README.md
+test -f database/setup.sql
+test -f database/schema.sql
+test -f database/seed.sql
+test -f backend/package.json
+test -f frontend/package.json
+
+echo "Repository structure verified"
+```
+If a required file is missing, stop and report the error rather than continuing with incomplete setup.
+
+### 2.2 Create the application environment
+
+The agent must create an isolated application environment and a separate PostgreSQL container.
+
+Recommended configuration:
+
+Setting
+
+Value
+
+Application image
+
+node:20-bookworm
+
+Database image
+
+postgres:16
+
+Repository directory
+
+/workspace/repo
+
+Docker network
+
+Unique network per pipeline run
+
+Database hostname
+
+db
+
+Database port
+
+5432
+
+Backend port
+
+3000
+
+Angular development server port
+
+4200
+
+Both containers must be connected to the same Docker network. The PostgreSQL container must be registered with the network alias db.
+
+Networking requirement: The hostname db is only valid inside a container connected to the appropriate Docker network. Do not assume that db resolves from the host machine or from a container on another network.
+
+The agent must verify that the database container is running and reachable before executing any database setup command.
+
+### 2.3 Install operating system and application dependencies
+
+Execute the following commands inside the application container:
+```bash
+apt-get update
+apt-get install -y postgresql-client chromium
+
+cd /workspace/repo/backend
+npm install
+
+cd /workspace/repo/frontend
+npm install
+```
+
+These commands install the PostgreSQL client, Chromium for headless Angular tests, and the Node.js dependencies for both application layers.
+
+If dependency installation fails, stop and report the complete command output. Do not mark the dependency stage as successful.
+
+### 2.4 Configure environment variables
+
+Create the backend environment file:
+```bash
+cd /workspace/repo/backend
+cp .env.example .env
+```
+
+The backend requires the following configuration:
+
+PORT=3000
+DATABASE_URL=postgres://inventory_user:inventory_pass@db:5432/inventory_db
+TEST_DATABASE_URL=postgres://inventory_user:inventory_pass@db:5432/inventory_test_db
+LOW_STOCK_THRESHOLD=10
+
+The database hostname db is appropriate for the automated Docker network. For a native local installation, use localhost instead.
+
+The automated environment must ensure that the runtime configuration points to the correct database host. When environment variables are injected by the orchestrator, verify that they take precedence over any conflicting defaults in .env.
+
+Never point TEST_DATABASE_URL at a database containing real application data. Automated backend tests may drop and recreate tables in the configured test database.
+
+### 2.5 Start PostgreSQL and wait for readiness
+
+Start the PostgreSQL container with the following database initialization settings:
+
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=postgres
+
+Wait for PostgreSQL to accept connections before continuing. Run the readiness check inside the database container:
+```bash
+pg_isready -U postgres -h 127.0.0.1 -p 5432```
+
+The expected result indicates that the server is accepting connections.
+
+Next, verify that the application container can resolve and reach PostgreSQL:
+
+getent hosts db
+```bash pg_isready -U postgres -h db -p 5432
+```
+
+If getent is unavailable, use an equivalent DNS lookup utility.
+
+Failure handling: If the hostname db cannot be resolved, stop the pipeline at this stage. Check the Docker network membership, database container status, and network alias. Do not continue to SQL setup or mark database initialization as successful.
+
+### 2.6 Create the application databases and database user
+
+Run the following command from the application container:
+```bash
+cd /workspace/repo
+
+PGPASSWORD=postgres psql \
+  -h db \
+  -p 5432 \
+  -U postgres \
+  -d postgres \
+  -v ON_ERROR_STOP=1 \
+  -f database/setup.sql
+```
+
+The setup script creates the dedicated application user and the following databases:
+
+inventory_db — application data.
+
+inventory_test_db — automated integration testing.
+
+The script must be compatible with the repository's documented initialization procedure. If it is not safe to execute more than once, the agent should execute it once against a fresh database instance rather than blindly retrying it.
+
+2.7 Initialize database tables and sample data
+
+After the databases have been created, initialize the application schema and seed the development data:
+```bash
+cd /workspace/repo/backend
+
+npm run db:init
+npm run db:seed
+```
+
+Expected results:
+
+The products and sales tables are created.
+
+The sample products are inserted.
+
+The backend can connect using DATABASE_URL.
+
+Verify that the database objects exist:
+```bash
+PGPASSWORD=inventory_pass psql \
+  -h db \
+  -U inventory_user \
+  -d inventory_db \
+  -c "\dt"
+  ```
+
+The output should include the products and sales tables.
+
+### 2.8 Build the Angular frontend
+
+Run the production build:
+```bash
+cd /workspace/repo/frontend
+npm run build
+```
+
+The build must finish successfully and generate the production bundle under:
+
+frontend/dist/inventory-ui/
+
+A successful build verifies TypeScript compilation and Angular template compilation. It does not, by itself, prove that the backend or database is working.
+
+### 2.9 Execute automated tests
+
+Backend integration tests
+```bash
+cd /workspace/repo/backend
+npm test```
+
+These tests require a working PostgreSQL connection and the configured inventory_test_db.
+
+They validate API behaviour, product management, sales creation, stock reduction, input validation, and overselling protection.
+
+Angular unit tests
+```bash
+cd /workspace/repo/frontend
+set CHROME_BIN=/usr/bin/chromium
+npm run test:ci
+```
+use ChromeHeadlessNoSandbox, change the Angular test script or README instructions so the test run actually selects that launcher.
+Run the tests in headless mode so that the process exits with an appropriate success or failure code.
+
+On any test failure, retain the test output and report the failing suite and relevant error. Do not convert a failed test into a successful validation result.
+
+### 2.10 Start the application
+
+Start the backend and frontend as separate processes within the application container.
+
+Backend terminal or managed process:
+```bash
+cd /workspace/repo/backend
+npm start
+
+Frontend terminal or managed process:
+
+cd /workspace/repo/frontend
+npm start -- --host 0.0.0.0
+```
+Both processes must remain running during the sanity-check stage.
+
+Expected endpoints:
+
+Component
+
+URL
+
+Backend health
+
+http://127.0.0.1:3000/api/health
+
+Angular application
+
+http://127.0.0.1:4200/
+
+The Angular development server must listen on 0.0.0.0 inside the container so that it can be reached through the container's published port or from other permitted containers.
+
+### 2.11 Run automated sanity checks
+
+Once the backend and frontend are running, execute:
+```bash
+cd /workspace/repo/backend
+npm run sanity
+```
+Then verify the application endpoints:
+```bash
+curl --fail http://127.0.0.1:3000/api/health
+curl --fail http://127.0.0.1:4200/
+```
+
+The automated sanity checks must confirm that:
+
+The API health endpoint returns HTTP 200 and reports a database connection.
+
+The Angular root page returns HTTP 200.
+
+Product creation and validation work.
+
+Creating a sale decreases product stock.
+
+Overselling is rejected and does not decrease stock further.
+
+Dashboard statistics can be retrieved.
+
+If a configured health check fails, inspect the relevant process logs before retrying.
+
+### 2.12 Required pipeline stage order
+
+The automated coding agent should follow this sequence:
+
+Clone the repository and check out the requested branch.
+
+Verify the README and repository structure.
+
+Create the isolated Docker network and application/database containers.
+
+Install operating system and application dependencies.
+
+Configure application environment variables.
+
+Wait for PostgreSQL readiness and verify database network connectivity.
+
+Create the application user and databases.
+
+Initialize tables and seed sample data.
+
+Build the Angular frontend.
+
+Run backend integration tests.
+
+Run Angular unit tests.
+
+Start the backend and frontend.
+
+Run API, UI, and business-rule sanity checks.
+
+Collect logs and results, clean up the environment, and report the final verdict.
+
+The pipeline must fail at the relevant stage if a mandatory command fails. It must not report an overall PASS unless all required checks succeed.
+
+### 2.13 Troubleshooting automated execution
+
+Error
+
+Required action
+
+could not translate host name "db"
+
+Verify that both containers share a Docker network and PostgreSQL has the db network alias.
+
+connection refused on port 5432
+
+Check that PostgreSQL is running and ready before continuing.
+
+database "inventory_db" does not exist
+
+Execute the database setup script and verify the result.
+
+Authentication failure
+
+Compare the SQL setup credentials with the effective runtime environment variables.
+
+Backend tests cannot connect
+
+Verify TEST_DATABASE_URL and confirm that inventory_test_db exists.
+
+Angular build fails
+
+Preserve the compiler output and resolve the build errors before continuing.
+
+Chrome/Karma fails
+
+Verify Chromium installation and CHROME_BIN.
+
+Health check fails
+
+Check process logs, container port configuration, and the effective API/frontend startup commands.
 ## 3. Install PostgreSQL
 
 Pick **one** option.
