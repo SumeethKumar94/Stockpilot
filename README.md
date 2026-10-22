@@ -304,8 +304,9 @@ cd /workspace/repo/frontend
 
 export CHROME_BIN=/usr/bin/chromium
 npm run test:ci
+"test:ci": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox"
 ```
-
+use ChromeHeadlessNoSandbox, change the Angular test script or README instructions so the test run actually selects that launcher.
 Run the tests in headless mode so that the process exits with an appropriate success or failure code.
 
 On any test failure, retain the test output and report the failing suite and relevant error. Do not convert a failed test into a successful validation result.
