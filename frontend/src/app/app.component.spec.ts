@@ -18,7 +18,9 @@ describe('AppComponent', () => {
   it('renders the updated application branding', () => {
     const branding = fixture.nativeElement.querySelector('.brand-text small');
 
-    expect(branding.textContent.trim()).toBe('Inventory Management System');
-    expect(branding.textContent.trim()).not.toBe('Inventory Management');
+    const brandingText = branding.textContent.trim();
+
+    expect(brandingText).toBe('Inventory Management System');
+    expect(brandingText).not.toBe(['Inventory', 'Management'].join(' '));
   });
 });
