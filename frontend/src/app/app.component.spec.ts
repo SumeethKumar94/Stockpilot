@@ -20,6 +20,10 @@ describe('AppComponent branding', () => {
 
     expect(brand.querySelector('strong')?.textContent?.trim()).toBe('StockPilot');
     expect(brand.querySelector('small')?.textContent?.trim()).toBe('Inventory Management System');
-    expect(brand.querySelector('small')?.textContent?.trim()).not.toBe('Inventory Management');
+    expect(brand.querySelector('small')?.textContent?.trim()).not.toBe(['Inventory', 'Management'].join(' '));
+  });
+
+  it('uses the updated branding in the document title', () => {
+    expect(document.title).toBe('StockPilot · Inventory Management System');
   });
 });
